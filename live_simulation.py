@@ -13,7 +13,7 @@ public = True  # Set to False to trade with your account
 dev = True  # Set to False to trade with real money
 
 # Settings:
-product_id = 'BTC-USD'  # Trading pair
+product_id = 'LTC-USD'  # Trading pair
 
 balance_file = 'balance.json'  # File to store the balance
 
@@ -168,7 +168,7 @@ class Bot(cbpro.WebsocketClient):
                 # Exit short position
                 position = None
                 exit_price = last_trade_price
-                sell(position, exit_price, order_size)
+                sell(position, exit_price)
                 print('-' * 100)
 
         elif position == 'long':
@@ -177,7 +177,7 @@ class Bot(cbpro.WebsocketClient):
                 # Exit long position
                 position = None
                 exit_price = last_trade_price
-                sell(position, exit_price, order_size)
+                sell(position, exit_price)
                 print('-' * 100)
 
     def on_close(self):
