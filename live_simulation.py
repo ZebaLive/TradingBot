@@ -21,6 +21,10 @@ long_entry_rsi_threshold = 30
 exit_rsi_threshold = 50
 historical_data_limit = 200
 
+# Coinbase Pro fee structure
+maker_fee_rate = 0.005  # 0.5%
+taker_fee_rate = 0.005  # 0.5%
+
 # if dev:
 #     api_key = os.getenv('DEV_API_KEY')
 #     api_secret = os.getenv('DEV_API_SECRET')
@@ -63,9 +67,16 @@ def calculate_rsi(df):
     rsi = talib.RSI(close_prices, timeperiod=rsi_period)
     return rsi[-1]
 
+def calculate_fee(amount, fee_rate):
+    return amount * fee_rate
+
 class Bot(cbpro.WebsocketClient):
     def on_open(self):
-        print("Bot is listening!")
+        global balance
+        
+        print("Bot is Trading!")
+        print('Starting Account Balance:', balance)  
+        print('-' * 100)
     def on_message(self, msg):
         global position, entry_price, balance, df_live, df_combined
 
@@ -108,9 +119,13 @@ class Bot(cbpro.WebsocketClient):
                 position = None
                 exit_price = last_trade_price
                 profit = (entry_price - exit_price) / entry_price
-                balance += balance * profit
+                fee = calculate_fee((entry_price + exit_price) / 2, taker_fee_rate)
+                balance += balance * profit - fee
                 print('Exit short position at $', exit_price)
                 print('Profit:', profit)
+                print('Fee:', fee)
+                print('-' * 100)
+                
 
         elif position == 'long':
             if rsi > exit_rsi_threshold:
@@ -118,14 +133,19 @@ class Bot(cbpro.WebsocketClient):
                 position = None
                 exit_price = last_trade_price
                 profit = (exit_price - entry_price) / entry_price
-                balance += balance * profit
+                fee = calculate_fee((entry_price + exit_price) / 2, taker_fee_rate)
+                balance += balance * profit - fee
                 print('Exit long position at $', exit_price)
                 print('Profit:', profit)
+                print('Fee:', fee)
+                print('-' * 100)
 
     def on_close(self):
-        print("-- Goodbye! --")
-    
-print('Starting Account Balance:', balance)   
+        global balance
+        
+        print('Final Account Balance:', round(balance, 2))
+        print('-' * 30 + "-- Goodbye! --" + '-' * 30)
+        
 bot = Bot(products=[product_id], channels=['ticker'])
 bot.start()
 
@@ -135,7 +155,7 @@ while True:
 
     except KeyboardInterrupt:
         print('Bot stopped by the user.')
-        print('Final Account Balance:', balance)
+        
         bot.close()
         break
     except Exception as e:
