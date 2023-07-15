@@ -7,7 +7,8 @@ import mplfinance as mpf
 # Load environment variables from the .env file
 load_dotenv()
 
-dev = True  # Set to False to trade with real money
+dev = False  # Set to False to trade with real money
+product_id = 'BTC-USDC' # Trading pair
 
 if dev:
     api_key = os.getenv('DEV_API_KEY')
@@ -24,12 +25,6 @@ else:
 client = cbpro.AuthenticatedClient(
     api_key, api_secret, api_passphrase, api_url)
 
-# # Test the connection by fetching your account information
-# accounts = client.get_accounts()
-# print(accounts)
-
-product_id = 'BTC-USD'
-
 # Fetch market data
 candles = client.get_product_historic_rates(
     product_id, granularity=3600)  # Hourly data
@@ -44,10 +39,13 @@ df[['low', 'high', 'open', 'close', 'volume']] = df[[
 df['time'] = pd.to_datetime(df['time'], unit='s')
 df.set_index('time', inplace=True)
 
+# Reverse the order of the DataFrame
+df = df.iloc[::-1]
+
 # Calculate a simple moving average (SMA) with a window of 20 periods
 sma_window = 20
 df['SMA'] = df['close'].rolling(sma_window).mean()
 
 # Plot the candlestick chart with SMA overlay
 mpf.plot(df, type='candle', mav=(sma_window,), volume=True,
-         title='BTC-USD Candlestick Chart with SMA')
+         title=f"{product_id} Candlestick Chart with SMA")
