@@ -3,6 +3,7 @@ import pandas as pd
 import time
 # from dotenv import load_dotenv
 # import os
+import talib
 
 # load_dotenv()
 
@@ -12,11 +13,13 @@ dev = True  # Set to False to trade with real money
 
 # Settings:
 product_id = 'BTC-USD'  # Trading pair
-short_window = 50
-long_window = 200
-starting_balance = 100.0  # Starting account balance
-# Candlestick data granularity in seconds (86400 sec = 1 day)
-granularity = 86400
+
+starting_balance = 1000.0
+rsi_period = 14
+short_entry_rsi_threshold = 70
+long_entry_rsi_threshold = 30
+exit_rsi_threshold = 50
+historical_data_limit = 200
 
 # if dev:
 #     api_key = os.getenv('DEV_API_KEY')
@@ -30,8 +33,8 @@ granularity = 86400
 #     api_url = "https://api.pro.coinbase.com"
 
 
-if public:
-    client = cbpro.PublicClient()
+# if public:
+#     client = cbpro.PublicClient()
 # else:
 #     client = cbpro.AuthenticatedClient(
 #         api_key, api_secret, api_passphrase, api_url)
@@ -41,82 +44,65 @@ position = None  # 'long', 'short', or None (no position)
 entry_price = 0.0
 balance = starting_balance
 
-# Fetch historical data
+# Initialize empty DataFrame for storing live market data
+columns = ['time', 'low', 'high', 'open', 'close', 'volume', 'RSI']
+df_live = pd.DataFrame(columns=columns)
+
+# Retrieve historical data
 client = cbpro.PublicClient()
 historical_data = client.get_product_historic_rates(product_id, granularity=60)
 df_historical = pd.DataFrame(historical_data, columns=['time', 'low', 'high', 'open', 'close', 'volume'])
 df_historical['time'] = pd.to_datetime(df_historical['time'], unit='s')
-df_historical.set_index('time', inplace=True)
+df_historical = df_historical.iloc[-historical_data_limit:]  # Limit historical data to desired length
 
-columns = ['time', 'low', 'high', 'open', 'close', 'volume', 'SMA_short', 'SMA_long']
-df_live = pd.concat([df_historical, pd.DataFrame(columns=columns)])
+f_combined = pd.concat([df_historical, df_live], axis=0, ignore_index=True)
 
-def calculate_indicators(df):
-    # Calculate moving averages
-    df['SMA_short'] = df['close'].rolling(short_window).mean()
-    df['SMA_long'] = df['close'].rolling(long_window).mean()
-
-    return df
-
-# Calculate indicators for the combined data
-df_live = calculate_indicators(df_live)
+def calculate_rsi(df):
+    close_prices = df['close'].values
+    rsi = talib.RSI(close_prices, timeperiod=rsi_period)
+    return rsi[-1]
 
 class Bot(cbpro.WebsocketClient):
     def on_open(self):
         print("Bot is listening!")
     def on_message(self, msg):
-        global position, entry_price, balance, df_live
+        global position, entry_price, balance, df_live, df_combined
 
         if msg['type'] != 'ticker':
             return
         
         # Get the latest ticker data from the WebSocket feed
         ticker = msg['price']
-        side = msg['side']
         last_trade_price = float(ticker)
 
         df_live.loc[pd.to_datetime(msg['time'])] = [msg['time'],
-                                                    float(msg['low_24h']),
-                                                    float(msg['high_24h']),
-                                                    float(msg['open_24h']),
-                                                    last_trade_price,
-                                                    float(msg['volume_24h']),
-                                                    0.0,
-                                                    0.0]
-
-         # Calculate indicators for the updated data
-        df_live = calculate_indicators(df_live)
-
-        # Get the latest row of live data
-        latest_row = df_live.iloc[-1]
+                                                float(msg['low_24h']),
+                                                float(msg['high_24h']),
+                                                float(msg['open_24h']),
+                                                last_trade_price,
+                                                float(msg['volume_24h']),
+                                                0.0]
+        
+        # Calculate RSI
+        df_combined = pd.concat([df_historical, df_live], axis=0, ignore_index=True)
+        rsi = calculate_rsi(df_combined)
 
         # Check for entry conditions
         if position is None:
-            if latest_row['SMA_short'] > latest_row['SMA_long'] and side == 'buy':
-                # Enter long position
-                position = 'long'
-                entry_price = last_trade_price
-                print('Enter long position at $', entry_price)
-            elif latest_row['SMA_short'] < latest_row['SMA_long'] and side == 'sell':
+            if rsi > short_entry_rsi_threshold:
                 # Enter short position
                 position = 'short'
                 entry_price = last_trade_price
                 print('Enter short position at $', entry_price)
+            elif rsi < long_entry_rsi_threshold:
+                # Enter long position
+                position = 'long'
+                entry_price = last_trade_price
+                print('Enter long position at $', entry_price)
 
         # Check for exit conditions
-        elif position == 'long' and side == 'sell':
-            if latest_row['close'] < latest_row['SMA_short']:
-                # Exit long position
-                position = None
-                exit_price = last_trade_price
-                profit = (exit_price - entry_price) / entry_price
-                balance += balance * profit
-                print('Exit long position at $', exit_price)
-                print('Profit:', profit)
-                print('Account Balance:', balance)
-
-        elif position == 'short' and side == 'buy':
-            if latest_row['close'] > latest_row['SMA_short']:
+        elif position == 'short':
+            if rsi < exit_rsi_threshold:
                 # Exit short position
                 position = None
                 exit_price = last_trade_price
@@ -124,12 +110,21 @@ class Bot(cbpro.WebsocketClient):
                 balance += balance * profit
                 print('Exit short position at $', exit_price)
                 print('Profit:', profit)
-                print('Account Balance:', balance)
+
+        elif position == 'long':
+            if rsi > exit_rsi_threshold:
+                # Exit long position
+                position = None
+                exit_price = last_trade_price
+                profit = (exit_price - entry_price) / entry_price
+                balance += balance * profit
+                print('Exit long position at $', exit_price)
+                print('Profit:', profit)
 
     def on_close(self):
         print("-- Goodbye! --")
     
-print('Account Balance:', balance)   
+print('Starting Account Balance:', balance)   
 bot = Bot(products=[product_id], channels=['ticker'])
 bot.start()
 
