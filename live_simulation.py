@@ -87,7 +87,7 @@ def buy(position, entry_price):
     global balance
     balance['position'] = position
     order = balance['money']/entry_price 
-    balance['order'] = order - calculate_fee(order)
+    balance['order'] = order #- calculate_fee(order)
     print('Buy',  balance['order'], 'at', print_money(entry_price))
     balance['money'] = 0.0
 
@@ -95,7 +95,7 @@ def sell(position, exit_price):
     global balance
     balance['position'] = ''
     money = exit_price * balance['order']
-    balance['money'] = money - calculate_fee(money)
+    balance['money'] = money #- calculate_fee(money)
     print('Sell',  balance['order'], 'at', print_money(exit_price))
     balance['order'] = 0.0
     print('Balance:', print_money(balance['money']))
