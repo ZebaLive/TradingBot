@@ -5,6 +5,7 @@ import time
 # import os
 import talib
 import json
+import argparse
 
 # load_dotenv()
 
@@ -13,16 +14,19 @@ public = True  # Set to False to trade with your account
 dev = True  # Set to False to trade with real money
 
 # Settings:
-product_id = 'LTC-USD'  # Trading pair
+parser = argparse.ArgumentParser()
+parser.add_argument('--product', help='Product ID (e.g., BTC-USD)', required=True)
+args = parser.parse_args()
+
 
 balance_file = 'balance.json'  # File to store the balance
 
-rsi_period = 14
+product_id = args.product
+rsi_period = 20
 short_entry_rsi_threshold = 70
 long_entry_rsi_threshold = 30
-short_exit_rsi_threshold = 30
-long_exit_rsi_threshold = 70
-exit_rsi_threshold = 50
+short_exit_rsi_threshold = 50
+long_exit_rsi_threshold = 50
 historical_data_limit = 200
 
 # Coinbase Pro fee structure
@@ -99,7 +103,9 @@ def sell(position, exit_price):
 def save_balance():
     global balance, balance_file
     
-    with open(balance_file, 'w') as file:
+    fname = product_id + '.json'
+    
+    with open(fname, 'w') as file:
         json.dump(balance, file)
         
 
@@ -119,7 +125,7 @@ class Bot(cbpro.WebsocketClient):
     def on_open(self):
         global balance
         
-        load_balance()
+        #load_balance()
         print('-' * 100)
         print("Bot is Trading!")
         print('Starting Account Balance:', balance)  
