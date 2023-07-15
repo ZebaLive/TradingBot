@@ -22,8 +22,8 @@ exit_rsi_threshold = 50
 historical_data_limit = 200
 
 # Coinbase Pro fee structure
-maker_fee_rate = 0.005  # 0.5%
-taker_fee_rate = 0.005  # 0.5%
+taker_fee_rate = 0.006  # 0.6%
+maker_fee_rate = 0.004  # 0.4%
 
 # if dev:
 #     api_key = os.getenv('DEV_API_KEY')
@@ -67,13 +67,17 @@ def calculate_rsi(df):
     rsi = talib.RSI(close_prices, timeperiod=rsi_period)
     return rsi[-1]
 
-def calculate_fee(amount, fee_rate):
-    return amount * fee_rate
+def calculate_fee(order_amount):
+    return order_amount * taker_fee_rate
+
+def print_money(amount):
+    return '${:,.2f}'.format(amount)
 
 class Bot(cbpro.WebsocketClient):
     def on_open(self):
         global balance
         
+        print('-' * 100)
         print("Bot is Trading!")
         print('Starting Account Balance:', balance)  
         print('-' * 100)
@@ -105,12 +109,15 @@ class Bot(cbpro.WebsocketClient):
                 # Enter short position
                 position = 'short'
                 entry_price = last_trade_price
-                print('Enter short position at $', entry_price)
+                print('Enter short position at', print_money(entry_price))
+                print('-' * 100)
+                
             elif rsi < long_entry_rsi_threshold:
                 # Enter long position
                 position = 'long'
                 entry_price = last_trade_price
-                print('Enter long position at $', entry_price)
+                print('Enter long position at', print_money(entry_price))
+                print('-' * 100)
 
         # Check for exit conditions
         elif position == 'short':
@@ -119,11 +126,11 @@ class Bot(cbpro.WebsocketClient):
                 position = None
                 exit_price = last_trade_price
                 profit = (entry_price - exit_price) / entry_price
-                fee = calculate_fee((entry_price + exit_price) / 2, taker_fee_rate)
-                balance += balance * profit - fee
-                print('Exit short position at $', exit_price)
-                print('Profit:', profit)
-                print('Fee:', fee)
+                fee = calculate_fee(exit_price)
+                balance += (balance * profit) - fee
+                print('Exit short position at', print_money(exit_price))
+                print('Profit:', print_money(balance * profit))
+                print('Fee:', print_money(fee))
                 print('-' * 100)
                 
 
@@ -133,11 +140,12 @@ class Bot(cbpro.WebsocketClient):
                 position = None
                 exit_price = last_trade_price
                 profit = (exit_price - entry_price) / entry_price
-                fee = calculate_fee((entry_price + exit_price) / 2, taker_fee_rate)
-                balance += balance * profit - fee
-                print('Exit long position at $', exit_price)
-                print('Profit:', profit)
-                print('Fee:', fee)
+                 profit = (exit_price - entry_price) / entry_price
+                fee = calculate_fee(exit_price)
+                balance += (balance * profit) - fee
+                print('Exit long position at', print_money(exit_price))
+                print('Profit:', print_money(balance * profit))
+                print('Fee:', print_money(fee))
                 print('-' * 100)
 
     def on_close(self):
