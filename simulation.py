@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 import os
-import coinbasepro as cbpro
+import cbpro
 import pandas as pd
 import mplfinance as mpf
 
@@ -108,6 +108,7 @@ for index, row in df.iterrows():
 total_profit = balance - starting_balance
 print('Total Profit:', total_profit)
 
+title = product_id + " Candlestick Chart with SMA"
 # Plot the candlestick chart with SMA overlay
 mpf.plot(df, type='candle', mav=(short_window, long_window), volume=True,
-         title=f"{product_id} Candlestick Chart with SMA")
+         title=product_id + " Candlestick Chart with SMA")
