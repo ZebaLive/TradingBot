@@ -143,6 +143,7 @@ class Bot(cbpro.WebsocketClient):
     def on_close(self):
         global balance
         
+        print('-' * 100)
         print('Final Account Balance:', round(balance, 2))
         print('-' * 30 + "-- Goodbye! --" + '-' * 30)
         
