@@ -20,6 +20,8 @@ balance_file = 'balance.json'  # File to store the balance
 rsi_period = 14
 short_entry_rsi_threshold = 70
 long_entry_rsi_threshold = 30
+short_exit_rsi_threshold = 30
+long_exit_rsi_threshold = 70
 exit_rsi_threshold = 50
 historical_data_limit = 200
 
@@ -163,7 +165,7 @@ class Bot(cbpro.WebsocketClient):
 
         # Check for exit conditions
         elif position == 'short':
-            if rsi < exit_rsi_threshold:
+            if rsi < short_exit_rsi_threshold:
                 print('Exiting short position')
                 # Exit short position
                 position = None
@@ -172,7 +174,7 @@ class Bot(cbpro.WebsocketClient):
                 print('-' * 100)
 
         elif position == 'long':
-            if rsi > exit_rsi_threshold:
+            if rsi > long_exit_rsi_threshold:
                 print('Exiting long position')
                 # Exit long position
                 position = None
@@ -186,7 +188,7 @@ class Bot(cbpro.WebsocketClient):
         print('-' * 100)
         print('Final Account Balance:', balance)
         print('-' * 30 + "-- Goodbye! --" + '-' * 30)
-        save_balance(balance)
+        save_balance()
          
 bot = Bot(products=[product_id], channels=['ticker'])
 bot.start()
