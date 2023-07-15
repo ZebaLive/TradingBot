@@ -4,6 +4,7 @@ import time
 # from dotenv import load_dotenv
 # import os
 import talib
+import json
 
 # load_dotenv()
 
@@ -14,7 +15,8 @@ dev = True  # Set to False to trade with real money
 # Settings:
 product_id = 'BTC-USD'  # Trading pair
 
-starting_balance = 1000.0
+balance_file = 'balance.json'  # File to store the balance
+
 rsi_period = 14
 short_entry_rsi_threshold = 70
 long_entry_rsi_threshold = 30
@@ -46,7 +48,8 @@ maker_fee_rate = 0.004  # 0.4%
 
 position = None  # 'long', 'short', or None (no position)
 entry_price = 0.0
-balance = starting_balance
+balance = {'money': 1000.0, 'order': 0.0, 'position': ''}
+
 order_size = None
 
 # Initialize empty DataFrame for storing live market data
@@ -68,28 +71,53 @@ def calculate_rsi(df):
     rsi = talib.RSI(close_prices, timeperiod=rsi_period)
     return rsi[-1]
 
-def calculate_fee(order_amount):
-    return order_amount * taker_fee_rate
+def calculate_fee(amount):
+    return amount * taker_fee_rate
 
 def print_money(amount):
     return '${:,.2f}'.format(amount)
 
-def buy(position, entry_price, order_amount):
+def buy(position, entry_price):
     global balance
-    balance -= (entry_price * order_amount)
-    print('Buy', order_amount, 'at', print_money(entry_price))
-    print('Balance:', print_money(balance))
+    balance['position'] = position
+    order = balance['money']/entry_price 
+    balance['order'] = order - calculate_fee(order)
+    print('Buy',  balance['order'], 'at', print_money(entry_price))
+    balance['money'] = 0.0
 
-def sell(position, exit_price, order_amount):
+def sell(position, exit_price):
     global balance
-    balance += (exit_price * order_amount)
-    print('Sell', order_amount, 'at', print_money(exit_price))
-    print('Balance:', print_money(balance))
+    balance['position'] = ''
+    money = exit_price * balance['order']
+    balance['money'] = money - calculate_fee(money)
+    print('Sell',  balance['order'], 'at', print_money(exit_price))
+    balance['order'] = 0.0
+    print('Balance:', print_money(balance['money']))
+    
+def save_balance():
+    global balance, balance_file
+    
+    with open(balance_file, 'w') as file:
+        json.dump(balance, file)
+        
+
+def load_balance():
+    global position, balance, balance_file
+    try:
+        with open(balance_file, 'r') as file:
+            balance = json.load(file)
+            
+        if balance['position'] == 'long' or balance['position'] == 'short':
+            position = balance['position']   
+            
+    except FileNotFoundError:
+        balance = {'money': 1000.0, 'order': 0.0, 'position': ''}
 
 class Bot(cbpro.WebsocketClient):
     def on_open(self):
         global balance
         
+        load_balance()
         print('-' * 100)
         print("Bot is Trading!")
         print('Starting Account Balance:', balance)  
@@ -123,16 +151,14 @@ class Bot(cbpro.WebsocketClient):
                 # Enter short position
                 position = 'short'
                 entry_price = last_trade_price
-                order_size = balance / entry_price
-                buy(position, entry_price, order_size)
+                buy(position, entry_price)
                 print('-' * 100)
             elif rsi < long_entry_rsi_threshold:
                 print('Entering long position')
                 # Enter long position
                 position = 'long'
                 entry_price = last_trade_price
-                order_size = balance / entry_price
-                buy(position, entry_price, order_size)
+                buy(position, entry_price)
                 print('-' * 100)
 
         # Check for exit conditions
@@ -156,11 +182,12 @@ class Bot(cbpro.WebsocketClient):
 
     def on_close(self):
         global balance
-        
+
         print('-' * 100)
         print('Final Account Balance:', print_money(balance))
         print('-' * 30 + "-- Goodbye! --" + '-' * 30)
-        
+        save_balance(balance)
+         
 bot = Bot(products=[product_id], channels=['ticker'])
 bot.start()
 
@@ -176,3 +203,4 @@ while True:
     except Exception as e:
         print('An error occurred:', str(e))
         time.sleep(1)  # Wait for the next iteration after an error occurred
+        
