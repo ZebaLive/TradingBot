@@ -1,7 +1,6 @@
 from dotenv import load_dotenv
 import os
 import coinbasepro as cbpro
-import itertools
 import pandas as pd
 import mplfinance as mpf
 
