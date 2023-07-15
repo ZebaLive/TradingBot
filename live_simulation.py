@@ -2,7 +2,6 @@ import cbpro
 import pandas as pd
 import time
 from dotenv import load_dotenv
-import mplfinance as mpf
 import os
 
 load_dotenv()
@@ -49,7 +48,8 @@ df_historical = pd.DataFrame(historical_data, columns=['time', 'low', 'high', 'o
 df_historical['time'] = pd.to_datetime(df_historical['time'], unit='s')
 df_historical.set_index('time', inplace=True)
 
-df_live = pd.concat([df_historical, pd.DataFrame(columns=['SMA_short', 'SMA_long'])])
+columns = ['time', 'low', 'high', 'open', 'close', 'volume', 'SMA_short', 'SMA_long']
+df_live = pd.concat([df_historical, pd.DataFrame(columns=columns)])
 
 def calculate_indicators(df):
     # Calculate moving averages
@@ -60,10 +60,6 @@ def calculate_indicators(df):
 
 # Calculate indicators for the combined data
 df_live = calculate_indicators(df_live)
-
-# # Initialize empty DataFrame for storing live market data
-# columns = ['time', 'low', 'high', 'open', 'close', 'volume', 'SMA_short', 'SMA_long']
-# df_live = pd.DataFrame(columns=columns)
 
 class Bot(cbpro.WebsocketClient):
     def on_open(self):
@@ -88,9 +84,8 @@ class Bot(cbpro.WebsocketClient):
                                                     0.0,
                                                     0.0]
 
-        # Calculate moving averages
-        df_live['SMA_short'] = df_live['close'].rolling(short_window).mean()
-        df_live['SMA_long'] = df_live['close'].rolling(long_window).mean()
+         # Calculate indicators for the updated data
+        df_live = calculate_indicators(df_live)
 
         # Get the latest row of live data
         latest_row = df_live.iloc[-1]
@@ -131,8 +126,6 @@ class Bot(cbpro.WebsocketClient):
                 print('Profit:', profit)
                 print('Account Balance:', balance)
 
-        # Print current account balance
-        
     def on_close(self):
         print("-- Goodbye! --")
     
@@ -140,12 +133,13 @@ print('Account Balance:', balance)
 bot = Bot(products=[product_id], channels=['ticker'])
 bot.start()
 
-while bot.ws.sock.connected:
+while True:
     try:
         time.sleep(1)  # Wait for messages
 
     except KeyboardInterrupt:
         print('Bot stopped by the user.')
+        print('Final Account Balance:', balance)
         bot.close()
         break
     except Exception as e:
