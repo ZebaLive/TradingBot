@@ -55,7 +55,8 @@ df_historical = pd.DataFrame(historical_data, columns=['time', 'low', 'high', 'o
 df_historical['time'] = pd.to_datetime(df_historical['time'], unit='s')
 df_historical = df_historical.iloc[-historical_data_limit:]  # Limit historical data to desired length
 
-f_combined = pd.concat([df_historical, df_live], axis=0, ignore_index=True)
+# Combine historical and live data
+df_combined = pd.concat([df_historical, df_live], axis=0, ignore_index=True, sort=True)
 
 def calculate_rsi(df):
     close_prices = df['close'].values
@@ -84,7 +85,7 @@ class Bot(cbpro.WebsocketClient):
                                                 0.0]
         
         # Calculate RSI
-        df_combined = pd.concat([df_historical, df_live], axis=0, ignore_index=True)
+        df_combined = pd.concat([df_historical, df_live], axis=0, ignore_index=True, sort=True)
         rsi = calculate_rsi(df_combined)
 
         # Check for entry conditions
