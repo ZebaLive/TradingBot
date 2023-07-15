@@ -47,6 +47,7 @@ maker_fee_rate = 0.004  # 0.4%
 position = None  # 'long', 'short', or None (no position)
 entry_price = 0.0
 balance = starting_balance
+order_size = None
 
 # Initialize empty DataFrame for storing live market data
 columns = ['time', 'low', 'high', 'open', 'close', 'volume', 'RSI']
@@ -73,6 +74,18 @@ def calculate_fee(order_amount):
 def print_money(amount):
     return '${:,.2f}'.format(amount)
 
+def buy(position, entry_price, order_amount):
+    global balance
+    balance -= (entry_price * order_amount)
+    print('Buy', print_money(order_amount), 'at', print_money(entry_price))
+    print('Balance:', print_money(balance))
+
+def sell(position, exit_price, order_amount):
+    global balance
+    balance += (exit_price * order_amount)
+    print('Sell', print_money(order_amount), 'at', print_money(exit_price))
+    print('Balance:', print_money(balance))
+
 class Bot(cbpro.WebsocketClient):
     def on_open(self):
         global balance
@@ -82,7 +95,7 @@ class Bot(cbpro.WebsocketClient):
         print('Starting Account Balance:', balance)  
         print('-' * 100)
     def on_message(self, msg):
-        global position, entry_price, balance, df_live, df_combined
+        global position, entry_price, balance, df_live, df_combined, order_size
 
         if msg['type'] != 'ticker':
             return
@@ -106,46 +119,39 @@ class Bot(cbpro.WebsocketClient):
         # Check for entry conditions
         if position is None:
             if rsi > short_entry_rsi_threshold:
+                print('Entering short position')
                 # Enter short position
                 position = 'short'
                 entry_price = last_trade_price
-                print('Enter short position at', print_money(entry_price))
+                order_size = balance / entry_price
+                buy(position, entry_price, order_size)
                 print('-' * 100)
-                
             elif rsi < long_entry_rsi_threshold:
+                print('Entering long position')
                 # Enter long position
                 position = 'long'
                 entry_price = last_trade_price
-                print('Enter long position at', print_money(entry_price))
+                order_size = balance / entry_price
+                buy(position, entry_price, order_size)
                 print('-' * 100)
 
         # Check for exit conditions
         elif position == 'short':
             if rsi < exit_rsi_threshold:
+                print('Exiting short position')
                 # Exit short position
                 position = None
                 exit_price = last_trade_price
-                profit = (entry_price - exit_price) / entry_price
-                fee = calculate_fee(exit_price)
-                balance += (balance * profit) - fee
-                print('Exit short position at', print_money(exit_price))
-                print('Profit:', print_money(balance * profit))
-                print('Fee:', print_money(fee))
+                sell(position, exit_price, order_size)
                 print('-' * 100)
-                
 
         elif position == 'long':
             if rsi > exit_rsi_threshold:
+                print('Exiting long position')
                 # Exit long position
                 position = None
                 exit_price = last_trade_price
-                profit = (exit_price - entry_price) / entry_price
-                 profit = (exit_price - entry_price) / entry_price
-                fee = calculate_fee(exit_price)
-                balance += (balance * profit) - fee
-                print('Exit long position at', print_money(exit_price))
-                print('Profit:', print_money(balance * profit))
-                print('Fee:', print_money(fee))
+                sell(position, exit_price, order_size)
                 print('-' * 100)
 
     def on_close(self):
