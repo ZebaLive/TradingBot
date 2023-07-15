@@ -1,10 +1,10 @@
 import cbpro
 import pandas as pd
 import time
-from dotenv import load_dotenv
-import os
+# from dotenv import load_dotenv
+# import os
 
-load_dotenv()
+# load_dotenv()
 
 # Load environment variables from the .env file
 public = True  # Set to False to trade with your account
@@ -18,23 +18,23 @@ starting_balance = 100.0  # Starting account balance
 # Candlestick data granularity in seconds (86400 sec = 1 day)
 granularity = 86400
 
-if dev:
-    api_key = os.getenv('DEV_API_KEY')
-    api_secret = os.getenv('DEV_API_SECRET')
-    api_passphrase = os.getenv('DEV_API_PASSPHRASE')
-    api_url = "https://api-public.sandbox.exchange.coinbase.com"
-else:
-    api_key = os.getenv('API_KEY')
-    api_secret = os.getenv('API_SECRET')
-    api_passphrase = os.getenv('API_PASSPHRASE')
-    api_url = "https://api.pro.coinbase.com"
+# if dev:
+#     api_key = os.getenv('DEV_API_KEY')
+#     api_secret = os.getenv('DEV_API_SECRET')
+#     api_passphrase = os.getenv('DEV_API_PASSPHRASE')
+#     api_url = "https://api-public.sandbox.exchange.coinbase.com"
+# else:
+#     api_key = os.getenv('API_KEY')
+#     api_secret = os.getenv('API_SECRET')
+#     api_passphrase = os.getenv('API_PASSPHRASE')
+#     api_url = "https://api.pro.coinbase.com"
 
 
 if public:
     client = cbpro.PublicClient()
-else:
-    client = cbpro.AuthenticatedClient(
-        api_key, api_secret, api_passphrase, api_url)
+# else:
+#     client = cbpro.AuthenticatedClient(
+#         api_key, api_secret, api_passphrase, api_url)
 
 
 position = None  # 'long', 'short', or None (no position)
