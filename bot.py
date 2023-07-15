@@ -7,13 +7,22 @@ import mplfinance as mpf
 # Load environment variables from the .env file
 load_dotenv()
 
-# Retrieve environment variables
-api_key = os.getenv('API_KEY')
-api_secret = os.getenv('API_SECRET')
-api_passphrase = os.getenv('API_PASSPHRASE')
+dev = True  # Set to False to trade with real money
+
+if dev:
+    api_key = os.getenv('DEV_API_KEY')
+    api_secret = os.getenv('DEV_API_SECRET')
+    api_passphrase = os.getenv('DEV_API_PASSPHRASE')
+    api_url = "https://api-public.sandbox.exchange.coinbase.com"
+else:
+    api_key = os.getenv('API_KEY')
+    api_secret = os.getenv('API_SECRET')
+    api_passphrase = os.getenv('API_PASSPHRASE')
+    api_url = "https://api.pro.coinbase.com"
+
 
 client = cbpro.AuthenticatedClient(
-    api_key, api_secret, api_passphrase, "https://api-public.sandbox.exchange.coinbase.com")
+    api_key, api_secret, api_passphrase, api_url)
 
 # # Test the connection by fetching your account information
 # accounts = client.get_accounts()
