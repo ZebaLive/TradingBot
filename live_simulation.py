@@ -77,13 +77,13 @@ def print_money(amount):
 def buy(position, entry_price, order_amount):
     global balance
     balance -= (entry_price * order_amount)
-    print('Buy', print_money(order_amount), 'at', print_money(entry_price))
+    print('Buy', order_amount, 'at', print_money(entry_price))
     print('Balance:', print_money(balance))
 
 def sell(position, exit_price, order_amount):
     global balance
     balance += (exit_price * order_amount)
-    print('Sell', print_money(order_amount), 'at', print_money(exit_price))
+    print('Sell', order_amount, 'at', print_money(exit_price))
     print('Balance:', print_money(balance))
 
 class Bot(cbpro.WebsocketClient):
@@ -158,7 +158,7 @@ class Bot(cbpro.WebsocketClient):
         global balance
         
         print('-' * 100)
-        print('Final Account Balance:', round(balance, 2))
+        print('Final Account Balance:', print_money(balance))
         print('-' * 30 + "-- Goodbye! --" + '-' * 30)
         
 bot = Bot(products=[product_id], channels=['ticker'])
